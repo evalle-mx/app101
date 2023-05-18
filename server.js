@@ -6,7 +6,7 @@ const productRouter = require('./route/router-products')
 
 const app = express()
 
-// mongoose.connect( 'mongodb+srv://test-user:test-pwd@evalle0.siwpl.mongodb.net/?retryWrites=true&w=majority' )
+// mongoose.connect( 'mongodb+srv://<user>:<pass>@<cluster>>.mongodb.net/?retryWrites=true&w=majority' )
 mongoose.connect( process.env.ATLAS_URL )
 const db = mongoose.connection
 //console.log( process.env.ATLAS_URL);
