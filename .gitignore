@@ -8,3 +8,5 @@
 
 # misc
 config.env
+.DS_Store
+.env

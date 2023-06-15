@@ -2,7 +2,7 @@ const express = require('express')   //imports express libray as the application
 const router = express.Router()     //imports the Router Module
 const Product = require('../model/model-products')
 
-// HTTP methods: (GET, POST, PATCH, DELETE)
+// Default HTTP methods: (GET, POST, PATCH, DELETE)
 // GET (list)
 router.get('/',  async (req, res) => { 
     try {
@@ -12,11 +12,11 @@ router.get('/',  async (req, res) => {
         res.status(500).json( { message: err.message })   //500 Internal Server Error (Nothing to validate, must be on server side)
     } 
 })
-// GET (read)
-router.get('/:id', getProduct, async (req, res) => {  
+
+// GET (read by ID)
+router.get('/:id', findProduct, async (req, res) => {  
     console.log('<READ> id: ', req.params.id) 
-    // res.send( {message:`Product id: ${req.params.id}`})
-    res.json(res.product)
+    res.json(res.product)  //response from function: {}
 })
 
 //POST
@@ -25,6 +25,10 @@ router.post('/', async (req, res) => {
         name: req.body.name, 
         code: req.body.code
     })
+
+    if(req.body.price != null){
+        newProduct.price = req.body.price
+     }
     //Persist in database
     try {
         const created = await newProduct.save();  
@@ -35,12 +39,15 @@ router.post('/', async (req, res) => {
 })
 
 //PATCH
-router.patch('/:id', getProduct, async (req, res) => {
+router.patch('/:id', findProduct, async (req, res) => {
     if(req.body.name != null){
         res.product.name = req.body.name
      }
      if(req.body.code != null){
         res.product.code = req.body.code
+     }
+     if(req.body.price != null){
+        res.product.price = req.body.price
      }
     try {
         const updProduct = await res.product.save()
@@ -51,17 +58,16 @@ router.patch('/:id', getProduct, async (req, res) => {
  })
 
 //DELETE
-router.delete('/:id', getProduct, async(req, res) => { 
+router.delete('/:id', findProduct, async(req, res) => { 
     try {
-        //as getOneProduct has the document, call remove from collection
         await res.product.deleteOne()       //remove() was deprecated 
         res.json({message:'Product deleted'})
     } catch (error) {
         return res.status(500).json( {message:error.message}) 
     } 
  })
-
- async function getProduct(req, res, next){
+//Function to Fetch by ID (native)
+ async function findProduct(req, res, next){
     let myProduct
     try {
         myProduct = await Product.findById(req.params.id)
@@ -71,9 +77,102 @@ router.delete('/:id', getProduct, async(req, res) => {
     } catch (error) {
         return res.status(500).json( {message:error.message})
     }
+    
+    console.log('pricing: ', myProduct.getPricing());
     res.product = myProduct
+    
     next()
 }
+
+/*  OPERATIONS BY NAME (Mongoose Basic Operations)  */
+// GET (read by Name)
+router.get('/byname/:name', getProductByName, async (req, res) => {  
+    console.log('<get.byname> name: ', req.params.name) 
+    res.json(res.list)  //response from function : []
+})
+
+//findOneAndUpdate by Name
+router.patch('/byname/:name', async (req, res) => {  
+    console.log('<patch.byname> name: ', req.params.name) 
+    try {
+        let response
+        let filterQ = {name:req.params.name}
+        let updQ = {}
+        if(req.body.code != null){
+            updQ.code = req.body.code
+         }
+         if(req.body.price != null){
+            updQ.price = req.body.price
+         }
+        response = await Product.findOneAndUpdate(
+            filterQ, 
+            updQ,
+            { new: true}) //to return updated doc (default previous doc)
+        console.log(response);
+        res.json(response) 
+    } catch (error) {
+        return res.status(500).json( {message:error.message})
+    }
+})
+//DELETE by Name
+router.delete('/byname/:name', async (req, res) => {  
+    console.log('<delete.byname> name: ', req.params.name) 
+    try {
+        let response
+        let filterQ = {name:req.params.name}
+        response = await Product.findOneAndDelete(    //findOneAndRemove was deprecated
+            filterQ ) //it returns deleted document
+        console.log(response);
+        res.json(response) 
+    } catch (error) {
+        return res.status(500).json( {message:error.message})
+    }
+ })
+
+// Function to Fetch Record via Query from Params
+async function getProductByName(req, res, next){
+    let myProducts
+    try {
+        let pName = req.params.name;
+        let query = { name: pName }
+        myProducts = await Product.find(query)
+        if(myProducts == null){  //means list is null
+            return res.status(400).json({message:'Unable to find Products By Name'})
+        }
+    } catch (error) {
+        return res.status(500).json( {message:error.message})
+    }
+    res.list = myProducts
+    next()
+}
+
+
+//Query Building
+router.get('/mysearch/:order',  async (req, res) => { 
+    console.log('<mysearch>');
+    let order = req.params.order
+    console.log(`order: ${order}`);
+    try {
+        // Query
+        await Product.find()               // find all documents
+                   // .skip(100)                   // skip the first n items
+                    .limit(10)                   // limit to 10 items
+                    .sort({ price: order })      // ordening ascending/descending by price
+                    .select({ name: true, price: true}) // get name and price only
+                    .exec()                      // execute the query
+                    .then((docs) => {
+                        console.log(docs);
+                        res.json(docs) 
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                         res.json([]) 
+                    });
+    } catch (err) {
+        res.status(500).json( { message: err.message })   //500 Internal Server Error (Nothing to validate, must be on server side)
+    } 
+})
+
 //next() callback says to move to the next section of the parent code
 
 module.exports = router

@@ -13,6 +13,7 @@ const db = mongoose.connection
 
 
 db.on('error', (e) => {
+    console.error('Error connecting/processing ');
     console.log( e );
 })
 db.once('open', () => {
@@ -23,9 +24,9 @@ app.use( express.json() )
 app.use('/products', productRouter)
 
 
-app.listen( 3000, () => {
-    console.log('Server started')
-
+app.listen( process.env.PORT, () => {
+    console.log(`Server started on port ${process.env.PORT}`)
+    console.log('Connecting....');
 })
 
 // http://localhost:3000/products
